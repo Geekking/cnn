@@ -14,6 +14,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <fstream>
+
 using namespace std;
 const int testGradCount = 10;
 const int startCount = 0;
@@ -23,10 +24,10 @@ typedef struct COST_GRAD{
     vector<double> *grad;
 } COST_GRAD;
 
-const double rho = 0.95;
-const double beta = 5;
+const double rho = 0.10;
+const double beta = 3;
  int hiddenNodes = 30;
-const double EPISILON = 0.0001;
+const double EPISILON = 0.001;
 vector<vector<double> > midOutput;
 
 vector<vector<double> > output;
@@ -39,20 +40,20 @@ void initilizeTheta(vector<double> *theta,const int intputNodes){
         cout<<"Initializing"<<endl;
     }
     for (int i =0 ; i < hiddenNodes * intputNodes; i ++ ) {
-        theta->push_back( (rand()% 100 - 50)*EPISILON);
+        theta->push_back( (rand()% 200 - 100)*EPISILON);
     }
     //initialize b1
     for (int i =0 ; i < hiddenNodes ; i ++ ) {
-        theta->push_back( (rand()% 100 - 50)*EPISILON);
+        theta->push_back( (rand()% 200 - 100)*EPISILON);
     }
     //initialize w2
     for (int i =0 ; i <  intputNodes * hiddenNodes ; i ++ ) {
-        theta->push_back( (rand()% 100 - 50)*EPISILON);
+        theta->push_back( (rand()% 200 - 100)*EPISILON);
     }
     //initialzed b2
     
     for (int i =0 ; i <  intputNodes ; i ++ ) {
-        theta->push_back( (rand()% 100 - 50)*EPISILON);
+        theta->push_back( (rand()% 200 - 100)*EPISILON);
     }
     
     if(debug){
@@ -167,8 +168,7 @@ double forward(const vector<vector<double> > *sampleData,const vector<double> *t
             
             //cout<<w2[63][500]<<endl; //BUG
             output[i][j] = h;
-            //sigmoid(h);
-            
+            //output[i][j] = sigmoid(h);
         }
         
     }
@@ -219,7 +219,7 @@ void formTheta( vector<double> *theta,
 
 double KL(double rho,double r_h){
     double res = 0;
-    res = rho*log((double)rho/r_h) +(1-rho)*log((double)(1-rho)/(1-r_h));
+    res = rho*log((double)rho/r_h) +(1.0-rho)*log((double)(1.0-rho)/(1.0-r_h));
     return res;
 }
 
@@ -228,7 +228,7 @@ COST_GRAD Stoch_backward(const vector<vector<int> > *sampleData,const vector<dou
     vector<double>  delta2;
     
     
-    vector<double> rhohead = vector<double>(hiddenNodes,0);
+    vector<double> rhohead = vector<double>(hiddenNodes,0.0);
     
     int inputSize = (int)(*sampleData)[0].size();
     int sampleSize = (int)(*sampleData).size();
@@ -267,6 +267,7 @@ COST_GRAD Stoch_backward(const vector<vector<int> > *sampleData,const vector<dou
             double tmp = (output[i][j] - (*sampleData)[i][j]);
             cost +=  tmp * tmp;
             
+            tmp *= output[i][j]*(1.0- output[i][j]);
             
             delta3.push_back(tmp);
         }
@@ -394,7 +395,9 @@ COST_GRAD backward(const vector<vector<double> > *sampleData,const vector<double
             double tmp = (output[i][j] - (*sampleData)[i][j]);
             
             cost +=  tmp * tmp;
+            
             //tmp = tmp*output[i][j]*(1.0-output[i][j]);
+            
             delta3.push_back(tmp);
         }
         
@@ -408,7 +411,7 @@ COST_GRAD backward(const vector<vector<double> > *sampleData,const vector<double
             
             double sparsePanalty = (-rho/rhohead[j] + (1.0 - rho)/(1.0 - rhohead[j]));
             
-            //tmp += beta * sparsePanalty;
+            tmp += beta * sparsePanalty;
             
             //乘上simoid 函数的倒数
             
@@ -472,7 +475,7 @@ COST_GRAD backward(const vector<vector<double> > *sampleData,const vector<double
         sparsity += KL(rho, rhohead[j]);
     }
     
-    //cost += beta* sparsity;
+    cost += beta* sparsity;
     
     COST_GRAD res;
     
@@ -557,6 +560,7 @@ void updateTheta(vector<double> *theta,const int inputNodes, const vector<double
             w2[j][k] -=  alpha * (gradW2[j][k] );
            // cout<<w2[j][k]<<" vs "<< tmp<<" + "<<gradW2[j][k]<<endl;
         }
+        b2[j] -= alpha *(gradB2[j]);
     }
     
     if (debug) {
@@ -582,15 +586,13 @@ void preProcess(vector<vector<double> > *sampleData,vector<double> &means,vector
     int sampleSize= (int)sampleData->size();
     means = vector<double> (inputNodes,0.0);
     stds = vector<double> (inputNodes,0.0);
-
-
+    
     for (int i =0; i < sampleSize; i++) {
         for (int j = 0; j < inputNodes; j++) {
-            
             means[j] += (*sampleData)[i][j];
-            
         }
     }
+    
     for (int i = 0; i < inputNodes; i++) {
         
         means[i] /= sampleSize;
@@ -612,7 +614,6 @@ void preProcess(vector<vector<double> > *sampleData,vector<double> &means,vector
         }
     }
     
-    
 }
 void getOrigin(const vector<vector<double> > *orginData,vector<double> means , vector<double> stds){
     float cost = 0.0;
@@ -620,11 +621,11 @@ void getOrigin(const vector<vector<double> > *orginData,vector<double> means , v
         for (int j = 0; j < output[0].size(); j++) {
             
             output[i][j]  = output[i][j] * stds[j] + means[j];
-            //output[i][j] *= 255.0;
             cout<<output[i][j]<<" vs "<<(*orginData)[i][j]<<endl;
             
             cost += ((*orginData)[i][j] - output[i][j])*((*orginData)[i][j] - output[i][j]);
         }
+        cout<<endl;
     }
     cost /= output.size();
     cout<<cost<<endl;
@@ -636,6 +637,7 @@ void saveToDisk(const vector<double>  *theta,const int inputNodes, const vector<
     
     try {
         fileStream.open((outputFilePath).c_str());
+        
         string str;
         for (int i =0; i < hiddenNodes; i++) {
             for (int j = 0; j < inputNodes; j++) {
@@ -645,7 +647,6 @@ void saveToDisk(const vector<double>  *theta,const int inputNodes, const vector<
                     fileStream<<","<<(*theta)[i*inputNodes + j];
                 }
             }
-            
             fileStream<<endl;
         }
         int offset = hiddenNodes*inputNodes;
@@ -672,6 +673,7 @@ void saveToDisk(const vector<double>  *theta,const int inputNodes, const vector<
                 fileStream<<","<<stds[i];
             }
         }
+        fileStream<<endl;
         fileStream.close();
     } catch (ifstream::failure e) {
         cerr<<"Exception opening/reading/closing file\n";
@@ -684,6 +686,7 @@ void trainTheta( const vector<vector<double> > *sampleData,const int hidNodes){
     int  inputNodes = (int)(*tmpSample)[0].size();
     vector<double> means;
     vector<double> stds;
+    
     preProcess(tmpSample, means, stds);
     
     vector<double> theta  = vector<double>();
@@ -691,15 +694,15 @@ void trainTheta( const vector<vector<double> > *sampleData,const int hidNodes){
     bool CHECK_GRAD = false;
     
     initilizeTheta(&theta,inputNodes);
-    double alpha = 0.1;
-    double numda = 0.01;
+    double alpha = 0.01;
+    double numda = 0.001;
     
     COST_GRAD res;
     
 
-    for (int i = 0; i < 30; i++) {
+    for (int i = 0; i < 1000; i++) {
         counter = i;
-        if ((i+1) % 30 == 0) {
+        if ((i+1) % 100 == 0) {
             alpha *= 0.9;
         }
         tmpTheta = theta;

@@ -43,16 +43,17 @@ public:
 };
 #include <fstream>
 
-vector<int> split(string& str,const char* c)
+template <class T>
+vector<T> split(string& str,const char* c)
 {
     char *cstr, *p;
-    vector<int> res;
+    vector<T> res;
     cstr = new char[str.size()+1];
     strcpy(cstr,str.c_str());
     p = strtok(cstr,c);
     while(p!=NULL)
     {
-        res.push_back(atoi(p));
+        res.push_back((T)atof(p) ); // change to float
         p = strtok(NULL,c);
     }
     
@@ -74,7 +75,7 @@ const vector< vector<T> >* FileReader<T>::getTrainData() {
                 if (str.size() ==0) {
                     break;
                 }
-                vector<int> res =  split(str,",");
+                vector<T> res =  split<T>(str,",");
                 (*trainData)[count++] = res;
            }
             trainCount = count;
@@ -103,7 +104,7 @@ const vector< vector<T> >* FileReader<T>::getTestData() {
                 if (str.size() ==0) {
                     break;
                 }
-                vector<int> res =  split(str,",");
+                vector<T> res =  split<T>(str,",");
                 (*testData)[count++] = res;
             }
             testCount = count;
@@ -129,7 +130,7 @@ const vector< vector<T> >* FileReader<T>::getTrainX() {
     for (int i = 0; i < trainCount; i++) {
         vector<T> oneRow;
         for (int j =2; j < (*trainData)[i].size(); j++) {
-            oneRow.push_back((*trainData)[i][j]);
+            oneRow.push_back((T) ((*trainData)[i][j]) / 255.0);
         }
         (*trainX)[i] = oneRow;
     }
@@ -161,7 +162,7 @@ const vector< vector<T> >* FileReader<T>::getTestX() {
     for (int i =0; i < testCount; i++) {
         vector<T> oneRow;
         for(int j = 1;j < (*testData)[i].size();j++){
-            oneRow.push_back((*testData)[i][j]);
+            oneRow.push_back((T)((*testData)[i][j])/255.0);
          }
         (*testX)[i] = oneRow;
     }
